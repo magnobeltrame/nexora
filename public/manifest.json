@@ -1,0 +1,15 @@
+{
+  "short_name": "Nexora",
+  "name": "Nexora - Vida Financeira e Negócio",
+  "icons": [
+    {
+      "src": "/logo-nexora.jpeg",
+      "type": "image/jpeg",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0d131f",
+  "theme_color": "#0d131f",
+  "display": "standalone"
+}
