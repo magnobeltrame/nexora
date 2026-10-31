@@ -1,141 +1,155 @@
-import React from 'react';
+import SeletorMes from './SeletorMes';
+import IconeCategoria from './IconeCategoria';
+import LinhaLancamento from './LinhaLancamento';
+import { estiloCategoria, ESTILO_RECEITA } from '../lib/categorias';
+import { hojeISO, moeda, nomeDiaSemana } from '../lib/utils';
+
+const FILTROS = [
+  { id: 'todos', rotulo: 'Tudo' },
+  { id: 'pendentes', rotulo: 'Pendentes' },
+  { id: 'despesas', rotulo: 'Despesas' },
+  { id: 'receitas', rotulo: 'Receitas' },
+];
 
 export default function ControleGastos({
   receitas = [],
   despesas = [],
-  totalReceitas = 0,
-  totalPago = 0,
-  totalPendente = 0,
-  filtroDespesas = 'todos',
-  setFiltroDespesas = () => {},
+  filtro = 'todos',
+  setFiltro = () => {},
   alternarPagamento = () => {},
   alternarRecebimento = () => {},
-  removerDespesa = () => {},
-  removerReceita = () => {},
-  mesAtualTexto = '',
-  avancarMes = () => {},
-  voltarMes = () => {},
-  duplicarMesAnterior = () => {},
-  temDadosNoMesAnterior = false,
-  abrirEdicao = () => {}
+  mesTexto = '',
+  aoVoltarMes = () => {},
+  aoAvancarMes = () => {},
+  importarMesAnterior = () => {},
+  qtdParaImportar = 0,
+  importando = false,
+  abrirEdicao = () => {},
 }) {
+  const hoje = hojeISO();
 
-  const despesasFiltradas = despesas.filter(d => {
-    if (filtroDespesas === 'pagos') return d.pago;
-    if (filtroDespesas === 'pendentes') return !d.pago;
+  const totalReceitas = receitas.reduce((acc, r) => acc + r.valor, 0);
+  const totalDespesas = despesas.reduce((acc, d) => acc + d.valor, 0);
+  const saldoPrevisto = totalReceitas - totalDespesas;
+
+  // Junta receitas e despesas numa lista só
+  const todos = [
+    ...receitas.map((r) => ({ tipo: 'receita', id: r.id, nome: r.nome, valor: r.valor, data: r.data, concluido: r.recebido, original: r })),
+    ...despesas.map((d) => ({
+      tipo: 'despesa',
+      id: d.id,
+      nome: d.nome,
+      valor: d.valor,
+      data: d.vencimento,
+      categoria: d.categoria,
+      concluido: d.pago,
+      original: d,
+    })),
+  ];
+
+  const visiveis = todos.filter((item) => {
+    if (filtro === 'receitas') return item.tipo === 'receita';
+    if (filtro === 'despesas') return item.tipo === 'despesa';
+    if (filtro === 'pendentes') return !item.concluido;
     return true;
   });
 
+  // Agrupa por dia
+  const porDia = {};
+  visiveis.forEach((item) => {
+    if (!porDia[item.data]) porDia[item.data] = [];
+    porDia[item.data].push(item);
+  });
+  const dias = Object.keys(porDia).sort();
+
+  const subtitulo = (item) => {
+    if (item.tipo === 'receita') return item.concluido ? 'Receita • Recebida' : 'Receita • A receber';
+    if (item.concluido) return `${item.categoria} • Paga`;
+    return item.data < hoje ? `${item.categoria} • Vencida` : `${item.categoria} • Pendente`;
+  };
+
   return (
-    <div className="animate-fade-in flex flex-col gap-6 pb-28">
-      {/* SELETOR DE MÊS */}
-      <div className="bg-nexora-card p-4 rounded-2xl border border-slate-800 shadow-md flex justify-between items-center">
-        <button onClick={voltarMes} className="text-gray-400 hover:text-white bg-slate-900 px-3 py-1.5 rounded-xl text-xs font-bold transition-all">
-          ← Mês Anterior
-        </button>
-        <div className="text-center">
-          <h2 className="text-sm font-bold text-white capitalize">{mesAtualTexto}</h2>
-          <p className="text-[10px] text-gray-400">Controlo Financeiro Pessoal</p>
+    <div className="pb-4">
+      <SeletorMes texto={mesTexto} aoVoltar={aoVoltarMes} aoAvancar={aoAvancarMes} />
+
+      <div className="mt-3 grid grid-cols-3 divide-x divide-linha rounded-2xl border border-linha bg-cartao py-3 text-center">
+        <div>
+          <p className="text-[11px] text-suave">Receitas</p>
+          <p className="mt-0.5 text-sm font-semibold text-receita">{moeda(totalReceitas)}</p>
         </div>
-        <button onClick={avancarMes} className="text-gray-400 hover:text-white bg-slate-900 px-3 py-1.5 rounded-xl text-xs font-bold transition-all">
-          Próximo →
-        </button>
+        <div>
+          <p className="text-[11px] text-suave">Despesas</p>
+          <p className="mt-0.5 text-sm font-semibold text-despesa">{moeda(totalDespesas)}</p>
+        </div>
+        <div>
+          <p className="text-[11px] text-suave">Saldo previsto</p>
+          <p className={`mt-0.5 text-sm font-semibold ${saldoPrevisto >= 0 ? 'text-texto' : 'text-despesa'}`}>
+            {saldoPrevisto >= 0 ? moeda(saldoPrevisto) : `- ${moeda(Math.abs(saldoPrevisto))}`}
+          </p>
+        </div>
       </div>
 
-      {/* BOTÃO DUPLICAR MÊS ANTERIOR */}
-      {temDadosNoMesAnterior && (
-        <button onClick={duplicarMesAnterior} className="w-full bg-nexora-primary/10 border border-nexora-primary/30 py-2.5 rounded-xl text-nexora-primary font-bold text-xs hover:bg-nexora-primary/20 transition-all flex items-center justify-center gap-2">
-          📥 Importar lançamentos do mês anterior
+      {qtdParaImportar > 0 && (
+        <button
+          onClick={importarMesAnterior}
+          disabled={importando}
+          className="mt-3 w-full rounded-xl border border-dashed border-marca/50 bg-marca/10 py-3 text-xs font-semibold text-marca disabled:opacity-60"
+        >
+          {importando ? 'Trazendo...' : `Trazer ${qtdParaImportar} lançamento${qtdParaImportar === 1 ? '' : 's'} do mês anterior`}
         </button>
       )}
 
-      {/* SECÇÃO DE RECEITAS */}
-      <div className="bg-nexora-card p-4 rounded-2xl border border-slate-800 shadow-md flex flex-col gap-3">
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider">💰 Receitas do Mês</h3>
-          <span className="text-xs font-bold text-white">Total: R$ {receitas.reduce((acc, r) => acc + r.valor, 0).toFixed(2)}</span>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          {receitas.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-2">Nenhuma receita registada neste mês.</p>
-          ) : (
-            receitas.map(r => {
-              const isRecebido = r.recebido !== false;
-              return (
-                <div key={r.id} className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                  <div className="flex items-center gap-2.5">
-                    {/* Checkbox pequeno e discreto */}
-                    <button 
-                      onClick={() => alternarRecebimento(r.id)} 
-                      className={`w-4 h-4 rounded-[4px] flex items-center justify-center transition-all text-[10px] ${isRecebido ? 'bg-emerald-500 text-white' : 'bg-slate-800 border border-slate-700 text-transparent'}`}
-                      title={isRecebido ? "Recebido" : "A Receber"}
-                    >
-                      ✓
-                    </button>
-                    <div>
-                      <p className={`text-xs font-bold ${isRecebido ? 'text-white' : 'text-gray-400'}`}>{r.nome}</p>
-                      <p className="text-[10px] text-gray-400">Data: {r.data} • <span className={isRecebido ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>{isRecebido ? 'Recebido' : 'A Receber'}</span></p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-emerald-400">R$ {r.valor.toFixed(2)}</span>
-                    {/* Ícones transparentes e juntos */}
-                    <div className="flex items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-                      <button onClick={() => abrirEdicao(r, 'receita')} className="text-gray-300 hover:text-white p-1 text-xs" title="Editar">✏️</button>
-                      <button onClick={() => removerReceita(r.id)} className="text-gray-400 hover:text-red-400 p-1 text-xs" title="Excluir">🗑️</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar lançamentos">
+        {FILTROS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFiltro(f.id)}
+            aria-pressed={filtro === f.id}
+            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              filtro === f.id ? 'bg-marca text-sobremarca' : 'bg-cartao2 text-suave'
+            }`}
+          >
+            {f.rotulo}
+          </button>
+        ))}
       </div>
 
-      {/* SECÇÃO DE DESPESAS */}
-      <div className="bg-nexora-card p-4 rounded-2xl border border-slate-800 shadow-md flex flex-col gap-3">
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-bold text-red-400 uppercase tracking-wider">📉 Despesas do Mês</h3>
-          <div className="flex gap-1">
-            <button onClick={() => setFiltroDespesas('todos')} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${filtroDespesas === 'todos' ? 'bg-slate-700 text-white' : 'text-gray-400'}`}>Todas</button>
-            <button onClick={() => setFiltroDespesas('pendentes')} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${filtroDespesas === 'pendentes' ? 'bg-red-500/20 text-red-400' : 'text-gray-400'}`}>Pendentes</button>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          {despesasFiltradas.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-2">Nenhuma despesa encontrada.</p>
-          ) : (
-            despesasFiltradas.map(d => (
-              <div key={d.id} className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  {/* Checkbox pequeno e discreto */}
-                  <button 
-                    onClick={() => alternarPagamento(d.id)} 
-                    className={`w-4 h-4 rounded-[4px] flex items-center justify-center transition-all text-[10px] ${d.pago ? 'bg-emerald-500 text-white' : 'bg-slate-800 border border-slate-700 text-transparent'}`}
-                    title={d.pago ? "Pago" : "Pendente"}
-                  >
-                    ✓
-                  </button>
-                  <div>
-                    <p className={`text-xs font-bold ${d.pago ? 'text-gray-400 line-through' : 'text-white'}`}>{d.nome}</p>
-                    <p className="text-[10px] text-gray-400">{d.categoria} • Venc: {d.vencimento}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-bold ${d.pago ? 'text-gray-500' : 'text-red-400'}`}>R$ {d.valor.toFixed(2)}</span>
-                  {/* Ícones transparentes e juntos */}
-                  <div className="flex items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-                    <button onClick={() => abrirEdicao(d, 'despesa')} className="text-gray-300 hover:text-white p-1 text-xs" title="Editar">✏️</button>
-                    <button onClick={() => removerDespesa(d.id)} className="text-gray-400 hover:text-red-400 p-1 text-xs" title="Excluir">🗑️</button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      {dias.length === 0 ? (
+        <p className="mt-8 text-center text-sm text-suave">
+          {todos.length === 0 ? 'Nenhum lançamento neste mês. Toque no + para começar.' : 'Nada encontrado com esse filtro.'}
+        </p>
+      ) : (
+        dias.map((dia) => (
+          <section key={dia} className="mt-4">
+            <div className="flex items-baseline gap-2 border-b border-linha pb-1.5">
+              <span className="text-lg font-bold text-texto">{dia.slice(8, 10)}</span>
+              <span className="text-xs capitalize text-suave">{nomeDiaSemana(dia)}</span>
+              {dia === hoje && <span className="rounded-full bg-marca/15 px-2 py-0.5 text-[10px] font-semibold text-marca">Hoje</span>}
+            </div>
+            <div className="divide-y divide-linha">
+              {porDia[dia].map((item) => (
+                <LinhaLancamento
+                  key={`${item.tipo}-${item.id}`}
+                  icone={<IconeCategoria {...(item.tipo === 'receita' ? ESTILO_RECEITA : estiloCategoria(item.categoria))} />}
+                  titulo={item.nome}
+                  subtitulo={subtitulo(item)}
+                  corSubtitulo={item.tipo === 'despesa' && !item.concluido && item.data < hoje ? 'text-despesa' : 'text-suave'}
+                  valor={`${item.tipo === 'receita' ? '+' : '-'} ${moeda(item.valor)}`}
+                  corValor={item.tipo === 'receita' ? 'text-receita' : 'text-despesa'}
+                  concluido={item.concluido}
+                  rotuloMarcar={
+                    item.tipo === 'receita'
+                      ? item.concluido ? 'Marcar como não recebida' : 'Marcar como recebida'
+                      : item.concluido ? 'Marcar como não paga' : 'Marcar como paga'
+                  }
+                  aoAlternar={() => (item.tipo === 'receita' ? alternarRecebimento(item.id) : alternarPagamento(item.id))}
+                  aoAbrir={() => abrirEdicao(item.original, item.tipo)}
+                />
+              ))}
+            </div>
+          </section>
+        ))
+      )}
     </div>
   );
 }

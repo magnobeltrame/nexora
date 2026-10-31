@@ -1,7 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-nexora-bg text-nexora-text antialiased;
+/*
+  PALETA DO APP
+  As cores saem da logo: verde-esmeralda sobre um fundo escuro esverdeado.
+  Os valores são "R G B" (sem vírgulas) para o Tailwind aceitar transparência (ex.: bg-marca/15).
+  Para mudar uma cor do app inteiro, é só editar aqui.
+*/
+@layer base {
+  /* ---------- TEMA CLARO ---------- */
+  :root {
+    color-scheme: light;
+    --fundo: 243 246 244;
+    --cartao: 255 255 255;
+    --cartao2: 233 240 237;
+    --linha: 213 224 220;
+    --texto: 11 31 28;
+    --suave: 90 112 107;
+
+    --marca: 4 120 87;          /* destaque principal */
+    --sobre-marca: 255 255 255; /* texto em cima do destaque */
+    --receita: 4 120 87;
+    --despesa: 190 18 60;
+    --sobre-despesa: 255 255 255;
+    --alerta: 180 83 9;
+  }
+
+  /* ---------- TEMA ESCURO ---------- */
+  .dark {
+    color-scheme: dark;
+    --fundo: 7 13 15;
+    --cartao: 14 26 28;
+    --cartao2: 20 36 39;
+    --linha: 31 51 54;
+    --texto: 241 247 245;
+    --suave: 139 165 163;
+
+    --marca: 52 211 153;
+    --sobre-marca: 4 35 27;
+    --receita: 52 211 153;
+    --despesa: 251 113 133;
+    --sobre-despesa: 42 8 14;
+    --alerta: 251 191 36;
+  }
+
+  /* ---------- MODO NEGÓCIO: mesma família, destaque em azul-petróleo ---------- */
+  [data-modo='negocio'] {
+    --marca: 14 116 144;
+    --sobre-marca: 255 255 255;
+  }
+  .dark [data-modo='negocio'] {
+    --marca: 34 211 238;
+    --sobre-marca: 4 30 38;
+  }
+
+  html {
+    background-color: rgb(var(--fundo));
+  }
+
+  body {
+    @apply bg-fundo text-texto antialiased;
+    font-family: 'Sora', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Foco visível para quem navega pelo teclado */
+  :focus-visible {
+    outline: 2px solid rgb(var(--marca));
+    outline-offset: 2px;
+  }
+
+  /* Campo de data com o ícone do calendário legível no tema escuro */
+  .dark input[type='date']::-webkit-calendar-picker-indicator {
+    filter: invert(0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,120 +1,159 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
+import { CAMPO, ESTILO_TOOLTIP } from '../lib/estilos';
+import { moeda } from '../lib/utils';
 
-export default function EvolucaoDetalhada({ voltar, receitas, despesas }) {
-  const [anoSelecionado, setAnoSelecionado] = useState('2026');
-  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const COR_RECEITA = '#10B981';
+const COR_DESPESA = '#F43F5E';
 
+export default function EvolucaoDetalhada({ receitas = [], despesas = [] }) {
+  const anoAtual = new Date().getFullYear();
+  const [anoSelecionado, setAnoSelecionado] = useState(anoAtual);
+
+  // Anos disponíveis: do mais antigo com lançamentos (ou 2 anos atrás) até o ano que vem
+  const anosDisponiveis = useMemo(() => {
+    const anosComDados = [...receitas.map((r) => r.data), ...despesas.map((d) => d.vencimento)]
+      .map((iso) => Number(iso?.slice(0, 4)))
+      .filter(Boolean);
+    const primeiro = Math.min(anoAtual - 2, ...anosComDados);
+    const ultimo = Math.max(anoAtual + 1, ...anosComDados);
+    const lista = [];
+    for (let ano = ultimo; ano >= primeiro; ano -= 1) lista.push(ano);
+    return lista;
+  }, [receitas, despesas, anoAtual]);
+
+  // Considera apenas o que já foi recebido e já foi pago
   const dadosAnuais = useMemo(() => {
-    const base = meses.map(mes => ({ mes, receitas: 0, despesas: 0 }));
+    const base = MESES.map((mes) => ({ mes, receitas: 0, despesas: 0 }));
 
-    const extrairMesAno = (dataString) => {
-      if (!dataString) return { mesIdx: 9, ano: '2026' };
-      const partes = dataString.split('/');
-      const mesIdx = parseInt(partes[1], 10) - 1;
-      const ano = partes.length === 3 ? partes[2] : '2026';
-      return { mesIdx: isNaN(mesIdx) ? 9 : mesIdx, ano };
-    };
-
-    receitas.forEach(r => {
-      const { mesIdx, ano } = extrairMesAno(r.data);
-      if (ano === anoSelecionado && mesIdx >= 0 && mesIdx <= 11) base[mesIdx].receitas += r.valor;
+    receitas.forEach((r) => {
+      if (!r.recebido || Number(r.data.slice(0, 4)) !== anoSelecionado) return;
+      base[Number(r.data.slice(5, 7)) - 1].receitas += r.valor;
     });
 
-    despesas.forEach(d => {
-      const { mesIdx, ano } = extrairMesAno(d.vencimento);
-      if (ano === anoSelecionado && mesIdx >= 0 && mesIdx <= 11) base[mesIdx].despesas += d.valor;
+    despesas.forEach((d) => {
+      if (!d.pago || Number(d.vencimento.slice(0, 4)) !== anoSelecionado) return;
+      base[Number(d.vencimento.slice(5, 7)) - 1].despesas += d.valor;
     });
 
     return base;
   }, [receitas, despesas, anoSelecionado]);
 
-  const totalGanhos = dadosAnuais.reduce((acc, curr) => acc + curr.receitas, 0);
-  const totalGastos = dadosAnuais.reduce((acc, curr) => acc + curr.despesas, 0);
-  const saldoAcumulado = totalGanhos - totalGastos;
+  const totalGanhos = dadosAnuais.reduce((acc, m) => acc + m.receitas, 0);
+  const totalGastos = dadosAnuais.reduce((acc, m) => acc + m.despesas, 0);
+  const saldoDoAno = totalGanhos - totalGastos;
+  const temDados = totalGanhos > 0 || totalGastos > 0;
 
   return (
-    <div className="animate-fade-in pb-10">
-      <div className="flex items-center gap-4 mb-8">
-        <button onClick={voltar} className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-slate-700 transition-colors">
-          ←
-        </button>
+    <div className="pb-4">
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">Evolução Financeira</h2>
-          <p className="text-sm text-gray-400">Relatório Anual Detalhado</p>
+          <h2 className="text-xl font-bold text-texto">Evolução</h2>
+          <p className="text-xs text-suave">Considera só o que já foi recebido e pago</p>
+        </div>
+        <div className="w-28">
+          <label htmlFor="anoEvolucao" className="sr-only">
+            Ano
+          </label>
+          <select id="anoEvolucao" value={anoSelecionado} onChange={(e) => setAnoSelecionado(Number(e.target.value))} className={CAMPO}>
+            {anosDisponiveis.map((ano) => (
+              <option key={ano} value={ano}>
+                {ano}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-3 mb-8">
-        <span className="text-gray-400 text-sm font-medium">Ano de Análise:</span>
-        <select value={anoSelecionado} onChange={(e) => setAnoSelecionado(e.target.value)} className="bg-slate-800 border border-slate-700 text-white px-4 py-2 rounded-lg outline-none focus:border-nexora-primary">
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-          <option value="2027">2027</option>
-        </select>
-      </div>
-
-      <div className="bg-nexora-card p-4 rounded-3xl shadow-lg border border-slate-800 mb-8">
-        <div className="flex justify-center gap-6 mb-6">
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-[#10B981] rounded-sm"></div><span className="text-xs text-gray-400">Entradas (Receitas)</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-[#EF4444] rounded-sm"></div><span className="text-xs text-gray-400">Saídas (Despesas)</span></div>
-        </div>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dadosAnuais} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-              {/* interval={0} força todos os meses a aparecerem no eixo X */}
-              <XAxis dataKey="mes" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} interval={0} />
-              <Tooltip cursor={{ fill: '#1e293b' }} contentStyle={{ backgroundColor: '#0a0f18', borderColor: '#334155', color: '#fff', borderRadius: '8px' }} />
-              <Bar dataKey="receitas" fill="#10B981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="despesas" fill="#EF4444" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {/* SALDO DO ANO */}
+      <div className="mt-4 rounded-3xl border border-linha bg-gradient-to-br from-marca/15 via-cartao to-cartao p-5">
+        <p className="text-xs font-medium text-suave">Saldo de {anoSelecionado}</p>
+        <p className={`mt-1 text-3xl font-bold tracking-tight ${saldoDoAno >= 0 ? 'text-texto' : 'text-despesa'}`}>
+          {saldoDoAno >= 0 ? moeda(saldoDoAno) : `- ${moeda(Math.abs(saldoDoAno))}`}
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-linha pt-4">
+          <div>
+            <p className="text-[11px] text-suave">Total recebido</p>
+            <p className="mt-0.5 text-sm font-semibold text-receita">{moeda(totalGanhos)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-suave">Total pago</p>
+            <p className="mt-0.5 text-sm font-semibold text-despesa">{moeda(totalGastos)}</p>
+          </div>
         </div>
       </div>
 
-      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        <div className="w-1 h-5 bg-nexora-primary rounded-full"></div>Resumo do Ano (Acumulado)
-      </h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#10B981] p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-lg shadow-emerald-900/20">
-          <p className="text-[10px] text-emerald-950 font-bold uppercase tracking-wider mb-1">Total Ganho em {anoSelecionado}</p>
-          <p className="text-xl font-bold text-white">R$ {totalGanhos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+      {/* GRÁFICO */}
+      <section className="mt-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-texto">Mês a mês</h3>
+          <div className="flex items-center gap-4 text-[11px] text-suave">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COR_RECEITA }}></span>Receitas
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COR_DESPESA }}></span>Despesas
+            </span>
+          </div>
         </div>
-        <div className="bg-[#EF4444] p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-lg shadow-red-900/20">
-          <p className="text-[10px] text-red-950 font-bold uppercase tracking-wider mb-1">Total Gasto em {anoSelecionado}</p>
-          <p className="text-xl font-bold text-white">R$ {totalGastos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-        </div>
-        <div className="bg-slate-700 p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-lg shadow-slate-900/50">
-          <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider mb-1">Saldo Acumulado</p>
-          <p className="text-xl font-bold text-white">R$ {saldoAcumulado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-        </div>
-      </div>
 
-      {/* Renderização Condicional da Mensagem de Feedback */}
-      {saldoAcumulado > 0 && (
-        <div className="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-4 text-center">
-          <p className="text-sm text-emerald-100">
-            🎉 Parabéns! No ano de <strong className="text-white">{anoSelecionado}</strong>, você acumulou um saldo positivo de <strong className="text-emerald-400">R$ {saldoAcumulado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>.
+        {temDados ? (
+          <div className="mt-3 h-60 w-full text-suave">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dadosAnuais} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="currentColor" strokeOpacity={0.2} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="mes" tick={{ fill: 'currentColor', fontSize: 10 }} tickLine={false} axisLine={false} interval={0} />
+                <Tooltip
+                  cursor={{ fill: 'currentColor', fillOpacity: 0.08 }}
+                  formatter={(valor, nome) => [moeda(valor), nome === 'receitas' ? 'Receitas' : 'Despesas']}
+                  {...ESTILO_TOOLTIP}
+                />
+                <Bar dataKey="receitas" fill={COR_RECEITA} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="despesas" fill={COR_DESPESA} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="mt-3 rounded-2xl bg-cartao2 px-4 py-6 text-center text-xs text-suave">
+            Ainda não há valores recebidos ou pagos em {anoSelecionado}.
           </p>
-        </div>
+        )}
+      </section>
+
+      {/* TABELA MÊS A MÊS */}
+      {temDados && (
+        <section className="mt-6">
+          <h3 className="text-sm font-semibold text-texto">Resultado por mês</h3>
+          <ul className="mt-1 divide-y divide-linha">
+            {dadosAnuais.map((m) => {
+              const saldo = m.receitas - m.despesas;
+              if (m.receitas === 0 && m.despesas === 0) return null;
+              return (
+                <li key={m.mes} className="flex items-center justify-between py-2.5 text-sm">
+                  <span className="w-12 font-medium text-texto">{m.mes}</span>
+                  <span className="flex-1 text-xs text-suave">
+                    {moeda(m.receitas)} − {moeda(m.despesas)}
+                  </span>
+                  <span className={`font-semibold ${saldo >= 0 ? 'text-receita' : 'text-despesa'}`}>
+                    {saldo >= 0 ? moeda(saldo) : `- ${moeda(Math.abs(saldo))}`}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
-      
-      {saldoAcumulado < 0 && (
-        <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-center">
-          <p className="text-sm text-red-100">
-            ⚠️ Atenção! No ano de <strong className="text-white">{anoSelecionado}</strong>, você fechou com um saldo negativo de <strong className="text-red-400">R$ {saldoAcumulado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>.
-          </p>
-        </div>
-      )}
 
-      {saldoAcumulado === 0 && (
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center">
-          <p className="text-sm text-gray-300">
-            ⚖️ Tudo equilibrado. No ano de <strong className="text-white">{anoSelecionado}</strong>, seu saldo está exato em <strong className="text-gray-400">R$ 0,00</strong>.
-          </p>
-        </div>
+      {saldoDoAno > 0 && (
+        <p className="mt-6 rounded-2xl border border-receita/30 bg-receita/10 px-4 py-3 text-center text-sm text-texto">
+          Em {anoSelecionado}, você fechou no azul: <strong className="text-receita">{moeda(saldoDoAno)}</strong> de saldo.
+        </p>
+      )}
+      {saldoDoAno < 0 && (
+        <p className="mt-6 rounded-2xl border border-despesa/30 bg-despesa/10 px-4 py-3 text-center text-sm text-texto">
+          Em {anoSelecionado}, as saídas passaram das entradas em <strong className="text-despesa">{moeda(Math.abs(saldoDoAno))}</strong>.
+        </p>
       )}
     </div>
   );
