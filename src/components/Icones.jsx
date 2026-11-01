@@ -86,3 +86,15 @@ export const IconeAlerta = criar(
     <path d="M12 10v4.5M12 17.2v.1" />
   </>
 );
+export const IconeDocumento = criar(
+  <>
+    <path d="M7 3.5h7.5L19 8v12.5H7Z" />
+    <path d="M14.5 3.5V8H19M10 12.5h6M10 16h6" />
+  </>
+);
+export const IconeCopiar = criar(
+  <>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+    <path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5" />
+  </>
+);
