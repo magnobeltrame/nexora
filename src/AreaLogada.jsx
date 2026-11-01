@@ -7,6 +7,7 @@ import useDadosNegocio from './hooks/useDadosNegocio';
 import useTema from './hooks/useTema';
 import useLiberacoes from './hooks/useLiberacoes';
 import useDadosPai from './hooks/useDadosPai';
+import useDadosInvestimentos from './hooks/useDadosInvestimentos';
 
 import Cabecalho from './components/Cabecalho';
 import BarraAbas from './components/BarraAbas';
@@ -23,15 +24,18 @@ import ImportarDados from './components/ImportarDados';
 import GestaoPai from './components/GestaoPai';
 import ModalPai from './components/ModalPai';
 import RelatorioPai from './components/RelatorioPai';
-import { IconeGrafico, IconeInicio, IconeLista, IconeMeta } from './components/Icones';
+import GestaoInvestimentos from './components/GestaoInvestimentos';
+import ModalInvestimento from './components/ModalInvestimento';
+import Simulador from './components/Simulador';
+import { IconeDocumento, IconeGrafico, IconeInicio, IconeLista, IconeMeta } from './components/Icones';
 
 // Para criar uma nova área no futuro (ex.: investimentos), é só acrescentar aqui e criar as telas dela.
-const MODOS_BASE = [
-  { id: 'pessoal', rotulo: 'Pessoal' },
-  { id: 'negocio', rotulo: 'Negócio' },
-];
+const MODO_PESSOAL = { id: 'pessoal', rotulo: 'Pessoal', descricao: 'Suas contas do dia a dia' };
+const MODO_NEGOCIO = { id: 'negocio', rotulo: 'Negócio', descricao: 'Seu trabalho, clientes e serviços' };
+const MODO_SIMULADOR = { id: 'simulador', rotulo: 'Simulador', descricao: 'Calculadora de juros compostos' };
 // Áreas restritas: só aparecem para quem foi liberado (tabela "liberacoes" no Supabase)
-const MODO_PAI = { id: 'pai', rotulo: 'Pai' };
+const MODO_PAI = { id: 'pai', rotulo: 'Pai', descricao: 'Caixa e prestação de contas' };
+const MODO_INVESTIMENTOS = { id: 'investimentos', rotulo: 'Investimentos', descricao: 'Carteira, proventos e imposto de renda' };
 
 const ABAS_PESSOAL = [
   { id: 'resumo', rotulo: 'Resumo', icone: IconeInicio },
@@ -43,6 +47,12 @@ const ABAS_PESSOAL = [
 const ABAS_NEGOCIO = [
   { id: 'painel', rotulo: 'Painel', icone: IconeInicio },
   { id: 'extrato', rotulo: 'Extrato', icone: IconeLista },
+];
+
+const ABAS_INVESTIMENTOS = [
+  { id: 'carteira', rotulo: 'Carteira', icone: IconeInicio },
+  { id: 'proventos', rotulo: 'Proventos', icone: IconeGrafico },
+  { id: 'ir', rotulo: 'IR', icone: IconeDocumento },
 ];
 
 const ABAS_PAI = [
@@ -66,18 +76,27 @@ export default function AreaLogada({ usuario }) {
   const liberacoes = useLiberacoes(usuario.id);
   const temPai = liberacoes.tem('pai');
   const pai = useDadosPai(usuario.id, setErro, temPai);
+  const temInvestimentos = liberacoes.tem('investimentos');
+  const inv = useDadosInvestimentos(usuario.id, setErro, temInvestimentos);
   const carregando = pessoal.carregando || negocio.carregando;
 
   // ==========================================
   // NAVEGAÇÃO
   // ==========================================
   const [modoEscolhido, setModoAtual] = useState('pessoal');
-  const modos = temPai ? [...MODOS_BASE, MODO_PAI] : MODOS_BASE;
+  const modos = [
+    MODO_PESSOAL,
+    MODO_NEGOCIO,
+    ...(temPai ? [MODO_PAI] : []),
+    ...(temInvestimentos ? [MODO_INVESTIMENTOS] : []),
+    MODO_SIMULADOR,
+  ];
   // Se uma área deixar de estar liberada, volta para o Pessoal
   const modoAtual = modos.some((m) => m.id === modoEscolhido) ? modoEscolhido : 'pessoal';
   const [abaPessoal, setAbaPessoal] = useState('resumo');
   const [abaNegocio, setAbaNegocio] = useState('painel');
   const [abaPai, setAbaPai] = useState('resumo');
+  const [abaInv, setAbaInv] = useState('carteira');
   const [filtroPai, setFiltroPai] = useState('todos');
   const [buscaPai, setBuscaPai] = useState('');
   const [filtroPessoal, setFiltroPessoal] = useState('todos');
@@ -88,7 +107,7 @@ export default function AreaLogada({ usuario }) {
   const areaRef = useRef(null);
   useEffect(() => {
     areaRef.current?.scrollTo({ top: 0 });
-  }, [modoAtual, abaPessoal, abaNegocio, abaPai]);
+  }, [modoAtual, abaPessoal, abaNegocio, abaPai, abaInv]);
 
   // ==========================================
   // MÊS EM EXIBIÇÃO (começa no mês de hoje)
@@ -244,6 +263,19 @@ export default function AreaLogada({ usuario }) {
   };
 
   // ==========================================
+  // INVESTIMENTOS (área restrita)
+  // ==========================================
+  const [modalInv, setModalInv] = useState(null); // { tipo, ticker, nomeRf }
+
+  const salvarInvestimento = async (dados) => {
+    let ok = false;
+    if (dados.kind === 'operacao') ok = await inv.registrarOperacao(dados);
+    else if (dados.kind === 'provento') ok = await inv.registrarProvento(dados);
+    else ok = await inv.salvarSaldoRendaFixa(dados);
+    if (ok) setModalInv(null);
+  };
+
+  // ==========================================
   // IMPORTAÇÃO DOS DADOS ANTIGOS (navegador -> conta)
   // ==========================================
   const [dadosLocais, setDadosLocais] = useState(() => lerDadosLocais(usuario.id));
@@ -304,21 +336,28 @@ export default function AreaLogada({ usuario }) {
     setModalPessoal(null);
     setModalNegocio(null);
     setModalPai(null);
+    setModalInv(null);
     setRelatorioPaiAberto(false);
     setConfirmacao(null);
     setDataRef(primeiroDiaDoMesAtual());
     setDataRefNegocio(primeiroDiaDoMesAtual());
     if (modoAtual === 'pessoal') setAbaPessoal('resumo');
     else if (modoAtual === 'negocio') setAbaNegocio('painel');
-    else setAbaPai('resumo');
+    else if (modoAtual === 'investimentos') setAbaInv('carteira');
+    else if (modoAtual === 'pai') setAbaPai('resumo');
     areaRef.current?.scrollTo({ top: 0 });
   };
 
   const adicionar = () => {
     if (modoAtual === 'pessoal') setModalPessoal({ item: null, tipo: 'despesa' });
     else if (modoAtual === 'negocio') setModalNegocio({ item: null });
-    else setModalPai({ item: null });
+    else if (modoAtual === 'investimentos') setModalInv({ tipo: 'compra' });
+    else if (modoAtual === 'pai') setModalPai({ item: null });
   };
+
+  const ABAS = { pessoal: ABAS_PESSOAL, negocio: ABAS_NEGOCIO, pai: ABAS_PAI, investimentos: ABAS_INVESTIMENTOS };
+  const abaAtiva = { pessoal: abaPessoal, negocio: abaNegocio, pai: abaPai, investimentos: abaInv };
+  const mudarAba = { pessoal: setAbaPessoal, negocio: setAbaNegocio, pai: setAbaPai, investimentos: setAbaInv };
 
   const nomeUsuario = usuario.user_metadata?.nome || usuario.email?.split('@')[0] || 'Usuário';
 
@@ -422,6 +461,26 @@ export default function AreaLogada({ usuario }) {
               <EvolucaoDetalhada receitas={pessoal.receitas} despesas={pessoal.despesas} />
             )}
 
+            {modoAtual === 'simulador' && <Simulador />}
+
+            {modoAtual === 'investimentos' &&
+              (inv.carregando ? (
+                <p className="mt-16 text-center text-sm text-suave">Carregando a carteira...</p>
+              ) : (
+                <GestaoInvestimentos
+                  aba={abaInv}
+                  ativos={inv.ativos}
+                  operacoes={inv.operacoes}
+                  proventos={inv.proventos}
+                  rendaFixa={inv.rendaFixa}
+                  aoNovoLancamento={(tipo, nomeRf) => setModalInv({ tipo, nomeRf })}
+                  aoSalvarAtivo={inv.atualizarAtivo}
+                  pedirConfirmacao={pedirConfirmacao}
+                  removerOperacao={inv.removerOperacao}
+                  removerProvento={inv.removerProvento}
+                />
+              ))}
+
             {modoAtual === 'pai' &&
               (pai.carregando ? (
                 <p className="mt-16 text-center text-sm text-suave">Carregando o caixa...</p>
@@ -460,13 +519,15 @@ export default function AreaLogada({ usuario }) {
         )}
       </main>
 
-      <BarraAbas
-        itens={modoAtual === 'pessoal' ? ABAS_PESSOAL : modoAtual === 'negocio' ? ABAS_NEGOCIO : ABAS_PAI}
-        ativo={modoAtual === 'pessoal' ? abaPessoal : modoAtual === 'negocio' ? abaNegocio : abaPai}
-        aoSelecionar={modoAtual === 'pessoal' ? setAbaPessoal : modoAtual === 'negocio' ? setAbaNegocio : setAbaPai}
-        aoAdicionar={adicionar}
-        rotuloAdicionar="Novo lançamento"
-      />
+      {modoAtual !== 'simulador' && (
+        <BarraAbas
+          itens={ABAS[modoAtual]}
+          ativo={abaAtiva[modoAtual]}
+          aoSelecionar={mudarAba[modoAtual]}
+          aoAdicionar={adicionar}
+          rotuloAdicionar="Novo lançamento"
+        />
+      )}
 
       {contaAberta && (
         <FolhaConta
@@ -516,6 +577,21 @@ export default function AreaLogada({ usuario }) {
           aoFechar={() => setModalPai(null)}
           aoSalvar={salvarPai}
           aoExcluir={excluirPai}
+        />
+      )}
+
+      {modalInv && (
+        <ModalInvestimento
+          key={`${modalInv.tipo}-${modalInv.nomeRf || ''}`}
+          tipoInicial={modalInv.tipo}
+          tickerInicial={modalInv.ticker || ''}
+          nomeRfInicial={modalInv.nomeRf || ''}
+          ativos={inv.ativos}
+          operacoes={inv.operacoes}
+          nomesRf={[...new Set(inv.rendaFixa.map((r) => r.nome))]}
+          dataPadrao={hojeISO()}
+          aoFechar={() => setModalInv(null)}
+          aoSalvar={salvarInvestimento}
         />
       )}
 

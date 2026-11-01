@@ -67,6 +67,26 @@
     --sobre-marca: 15 14 50;
   }
 
+  /* ---------- INVESTIMENTOS: dourado ---------- */
+  [data-modo='investimentos'] {
+    --marca: 161 98 7;
+    --sobre-marca: 255 255 255;
+  }
+  .dark [data-modo='investimentos'] {
+    --marca: 251 191 36;
+    --sobre-marca: 38 24 2;
+  }
+
+  /* ---------- SIMULADOR: violeta ---------- */
+  [data-modo='simulador'] {
+    --marca: 109 40 217;
+    --sobre-marca: 255 255 255;
+  }
+  .dark [data-modo='simulador'] {
+    --marca: 167 139 250;
+    --sobre-marca: 22 10 50;
+  }
+
   html {
     background-color: rgb(var(--fundo));
   }
