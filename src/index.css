@@ -57,6 +57,16 @@
     --sobre-marca: 4 30 38;
   }
 
+  /* ---------- ÁREA DO PAI: destaque em azul-índigo, para você perceber que está numa área restrita ---------- */
+  [data-modo='pai'] {
+    --marca: 67 56 202;
+    --sobre-marca: 255 255 255;
+  }
+  .dark [data-modo='pai'] {
+    --marca: 129 140 248;
+    --sobre-marca: 15 14 50;
+  }
+
   html {
     background-color: rgb(var(--fundo));
   }
@@ -84,5 +94,12 @@
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Ao imprimir o relatório, esconde o app e deixa só o relatório */
+@media print {
+  body.imprimindo-relatorio #root {
+    display: none !important;
   }
 }

@@ -5,6 +5,8 @@ import { lerDadosLocais, marcarComoTratado, prepararImportacao } from './lib/imp
 import useDadosPessoais from './hooks/useDadosPessoais';
 import useDadosNegocio from './hooks/useDadosNegocio';
 import useTema from './hooks/useTema';
+import useLiberacoes from './hooks/useLiberacoes';
+import useDadosPai from './hooks/useDadosPai';
 
 import Cabecalho from './components/Cabecalho';
 import BarraAbas from './components/BarraAbas';
@@ -18,13 +20,18 @@ import GestaoNegocio from './components/GestaoNegocio';
 import ModalLancamentoPessoal from './components/ModalLancamentoPessoal';
 import ModalNegocio from './components/ModalNegocio';
 import ImportarDados from './components/ImportarDados';
+import GestaoPai from './components/GestaoPai';
+import ModalPai from './components/ModalPai';
+import RelatorioPai from './components/RelatorioPai';
 import { IconeGrafico, IconeInicio, IconeLista, IconeMeta } from './components/Icones';
 
 // Para criar uma nova área no futuro (ex.: investimentos), é só acrescentar aqui e criar as telas dela.
-const MODOS = [
+const MODOS_BASE = [
   { id: 'pessoal', rotulo: 'Pessoal' },
   { id: 'negocio', rotulo: 'Negócio' },
 ];
+// Áreas restritas: só aparecem para quem foi liberado (tabela "liberacoes" no Supabase)
+const MODO_PAI = { id: 'pai', rotulo: 'Pai' };
 
 const ABAS_PESSOAL = [
   { id: 'resumo', rotulo: 'Resumo', icone: IconeInicio },
@@ -35,6 +42,11 @@ const ABAS_PESSOAL = [
 
 const ABAS_NEGOCIO = [
   { id: 'painel', rotulo: 'Painel', icone: IconeInicio },
+  { id: 'extrato', rotulo: 'Extrato', icone: IconeLista },
+];
+
+const ABAS_PAI = [
+  { id: 'resumo', rotulo: 'Resumo', icone: IconeInicio },
   { id: 'extrato', rotulo: 'Extrato', icone: IconeLista },
 ];
 
@@ -51,14 +63,23 @@ export default function AreaLogada({ usuario }) {
   const pessoal = useDadosPessoais(usuario.id, setErro);
   const negocio = useDadosNegocio(usuario.id, setErro);
   const tema = useTema();
+  const liberacoes = useLiberacoes(usuario.id);
+  const temPai = liberacoes.tem('pai');
+  const pai = useDadosPai(usuario.id, setErro, temPai);
   const carregando = pessoal.carregando || negocio.carregando;
 
   // ==========================================
   // NAVEGAÇÃO
   // ==========================================
-  const [modoAtual, setModoAtual] = useState('pessoal');
+  const [modoEscolhido, setModoAtual] = useState('pessoal');
+  const modos = temPai ? [...MODOS_BASE, MODO_PAI] : MODOS_BASE;
+  // Se uma área deixar de estar liberada, volta para o Pessoal
+  const modoAtual = modos.some((m) => m.id === modoEscolhido) ? modoEscolhido : 'pessoal';
   const [abaPessoal, setAbaPessoal] = useState('resumo');
   const [abaNegocio, setAbaNegocio] = useState('painel');
+  const [abaPai, setAbaPai] = useState('resumo');
+  const [filtroPai, setFiltroPai] = useState('todos');
+  const [buscaPai, setBuscaPai] = useState('');
   const [filtroPessoal, setFiltroPessoal] = useState('todos');
   const [filtroNegocio, setFiltroNegocio] = useState('todos');
   const [contaAberta, setContaAberta] = useState(false);
@@ -67,7 +88,7 @@ export default function AreaLogada({ usuario }) {
   const areaRef = useRef(null);
   useEffect(() => {
     areaRef.current?.scrollTo({ top: 0 });
-  }, [modoAtual, abaPessoal, abaNegocio]);
+  }, [modoAtual, abaPessoal, abaNegocio, abaPai]);
 
   // ==========================================
   // MÊS EM EXIBIÇÃO (começa no mês de hoje)
@@ -200,6 +221,29 @@ export default function AreaLogada({ usuario }) {
   };
 
   // ==========================================
+  // CAIXA DO PAI (área restrita)
+  // ==========================================
+  const [modalPai, setModalPai] = useState(null); // { item }
+  const [relatorioPaiAberto, setRelatorioPaiAberto] = useState(false);
+
+  const salvarPai = async (dados) => {
+    const id = modalPai?.item?.id ?? null;
+    if (await pai.salvar(id, dados)) setModalPai(null);
+  };
+
+  const excluirPai = () => {
+    const { item } = modalPai;
+    pedirConfirmacao({
+      titulo: 'Excluir este lançamento?',
+      mensagem: `“${item.nome}” sai do extrato, mas fica guardado na Lixeira e pode ser restaurado.`,
+      rotulo: 'Excluir',
+      aoConfirmar: async () => {
+        if (await pai.mandarParaLixeira(item.id)) setModalPai(null);
+      },
+    });
+  };
+
+  // ==========================================
   // IMPORTAÇÃO DOS DADOS ANTIGOS (navegador -> conta)
   // ==========================================
   const [dadosLocais, setDadosLocais] = useState(() => lerDadosLocais(usuario.id));
@@ -259,15 +303,22 @@ export default function AreaLogada({ usuario }) {
     setContaAberta(false);
     setModalPessoal(null);
     setModalNegocio(null);
+    setModalPai(null);
+    setRelatorioPaiAberto(false);
     setConfirmacao(null);
     setDataRef(primeiroDiaDoMesAtual());
     setDataRefNegocio(primeiroDiaDoMesAtual());
     if (modoAtual === 'pessoal') setAbaPessoal('resumo');
-    else setAbaNegocio('painel');
+    else if (modoAtual === 'negocio') setAbaNegocio('painel');
+    else setAbaPai('resumo');
     areaRef.current?.scrollTo({ top: 0 });
   };
 
-  const adicionar = () => (modoAtual === 'pessoal' ? setModalPessoal({ item: null, tipo: 'despesa' }) : setModalNegocio({ item: null }));
+  const adicionar = () => {
+    if (modoAtual === 'pessoal') setModalPessoal({ item: null, tipo: 'despesa' });
+    else if (modoAtual === 'negocio') setModalNegocio({ item: null });
+    else setModalPai({ item: null });
+  };
 
   const nomeUsuario = usuario.user_metadata?.nome || usuario.email?.split('@')[0] || 'Usuário';
 
@@ -294,7 +345,7 @@ export default function AreaLogada({ usuario }) {
       )}
 
       <Cabecalho
-        modos={MODOS}
+        modos={modos}
         modo={modoAtual}
         aoMudarModo={setModoAtual}
         aoIrParaInicio={irParaInicio}
@@ -371,6 +422,24 @@ export default function AreaLogada({ usuario }) {
               <EvolucaoDetalhada receitas={pessoal.receitas} despesas={pessoal.despesas} />
             )}
 
+            {modoAtual === 'pai' &&
+              (pai.carregando ? (
+                <p className="mt-16 text-center text-sm text-suave">Carregando o caixa...</p>
+              ) : (
+                <GestaoPai
+                  aba={abaPai}
+                  ativos={pai.ativos}
+                  excluidos={pai.excluidos}
+                  filtro={filtroPai}
+                  setFiltro={setFiltroPai}
+                  busca={buscaPai}
+                  setBusca={setBuscaPai}
+                  abrirEdicao={(item) => setModalPai({ item })}
+                  restaurar={pai.restaurar}
+                  aoGerarRelatorio={() => setRelatorioPaiAberto(true)}
+                />
+              ))}
+
             {modoAtual === 'negocio' && (
               <GestaoNegocio
                 aba={abaNegocio}
@@ -392,9 +461,9 @@ export default function AreaLogada({ usuario }) {
       </main>
 
       <BarraAbas
-        itens={modoAtual === 'pessoal' ? ABAS_PESSOAL : ABAS_NEGOCIO}
-        ativo={modoAtual === 'pessoal' ? abaPessoal : abaNegocio}
-        aoSelecionar={modoAtual === 'pessoal' ? setAbaPessoal : setAbaNegocio}
+        itens={modoAtual === 'pessoal' ? ABAS_PESSOAL : modoAtual === 'negocio' ? ABAS_NEGOCIO : ABAS_PAI}
+        ativo={modoAtual === 'pessoal' ? abaPessoal : modoAtual === 'negocio' ? abaNegocio : abaPai}
+        aoSelecionar={modoAtual === 'pessoal' ? setAbaPessoal : modoAtual === 'negocio' ? setAbaNegocio : setAbaPai}
         aoAdicionar={adicionar}
         rotuloAdicionar="Novo lançamento"
       />
@@ -438,6 +507,19 @@ export default function AreaLogada({ usuario }) {
           removerItemCatalogo={negocio.removerItemCatalogo}
         />
       )}
+
+      {modalPai && (
+        <ModalPai
+          key={modalPai.item?.id ?? 'novo'}
+          item={modalPai.item}
+          dataPadrao={hojeISO()}
+          aoFechar={() => setModalPai(null)}
+          aoSalvar={salvarPai}
+          aoExcluir={excluirPai}
+        />
+      )}
+
+      {relatorioPaiAberto && <RelatorioPai lancamentos={pai.ativos} nomeResponsavel={nomeUsuario} aoFechar={() => setRelatorioPaiAberto(false)} />}
 
       {confirmacao && (
         <ConfirmarExclusao

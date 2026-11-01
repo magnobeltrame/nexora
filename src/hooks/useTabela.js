@@ -10,7 +10,7 @@ const identidade = (x) => x;
 export default function useTabela(
   tabela,
   userId,
-  { ordenarPor = 'created_at', ascendente = false, converter = identidade, paraBanco = identidade, aoErro } = {}
+  { ordenarPor = 'created_at', ascendente = false, converter = identidade, paraBanco = identidade, aoErro, habilitado = true } = {}
 ) {
   const [itens, setItens] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -30,8 +30,8 @@ export default function useTabela(
   }, [tabela, ordenarPor, ascendente, converter, aoErro]);
 
   useEffect(() => {
-    carregar();
-  }, [carregar]);
+    if (habilitado) carregar();
+  }, [carregar, habilitado]);
 
   const falhar = (error, mensagem) => {
     console.error(error);

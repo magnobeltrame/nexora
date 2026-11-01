@@ -6,6 +6,8 @@ export const ESTILO_CATEGORIA = {
   Educação: { emoji: '🎓', cor: '#06B6D4' },
   Cartões: { emoji: '💳', cor: '#EC4899' },
   Saúde: { emoji: '🩺', cor: '#14B8A6' },
+  Compras: { emoji: '🛍️', cor: '#F472B6' },
+  Beleza: { emoji: '💅', cor: '#A855F7' },
   Lazer: { emoji: '🎉', cor: '#EAB308' },
   Investimentos: { emoji: '📈', cor: '#22C55E' },
   Outros: { emoji: '📦', cor: '#94A3B8' },

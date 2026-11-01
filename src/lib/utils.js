@@ -3,7 +3,7 @@
 // ==========================================
 export const CATEGORIAS_DESPESA = [
   'Moradia', 'Alimentação', 'Transporte', 'Educação', 'Cartões',
-  'Saúde', 'Lazer', 'Investimentos', 'Outros',
+  'Saúde', 'Compras', 'Beleza', 'Lazer', 'Investimentos', 'Outros',
 ];
 
 export const CATEGORIAS_RECEITA_NEGOCIO = [
