@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { CAMPO, ESTILO_TOOLTIP, ROTULO } from '../lib/estilos';
+import { CAMPO, CAMPO_AUTO, ESTILO_TOOLTIP, ROTULO } from '../lib/estilos';
 import { moeda } from '../lib/utils';
 import { projetar, tempoParaMeta } from '../lib/simulador';
 
@@ -35,7 +35,7 @@ function Campo({ id, rotulo, valor, aoMudar, prefixo, sufixo, passo = '0.01', la
           value={valor}
           onChange={(e) => aoMudar(e.target.value)}
           placeholder="0"
-          className={`${CAMPO} ${prefixo ? 'pl-11' : ''} ${sufixo ? 'pr-14' : ''}`}
+          className={`${CAMPO} ${prefixo ? 'pl-11' : ''} ${sufixo ? 'pr-12' : ''}`}
         />
         {sufixo && <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-suave">{sufixo}</span>}
       </div>
@@ -90,22 +90,44 @@ export default function Simulador() {
       <div className="mt-4 grid grid-cols-2 gap-3">
         <Campo id="simInicial" rotulo="Valor inicial" valor={inicial} aoMudar={setInicial} prefixo="R$" />
         <Campo id="simAporte" rotulo="Aporte mensal" valor={aporte} aoMudar={setAporte} prefixo="R$" />
-        <div className="col-span-2">
+      </div>
+
+      {/* Taxa (campo largo + ao ano/ao mês) na mesma barra do período */}
+      <div className={`mt-3 grid gap-3 ${modo === 'final' ? 'grid-cols-[1.7fr_1fr]' : 'grid-cols-1'}`}>
+        <div>
           <label htmlFor="simTaxa" className={ROTULO}>
             Taxa de juros
           </label>
           <div className="flex gap-2">
-            <input id="simTaxa" type="number" min="0" step="0.01" inputMode="decimal" value={taxa} onChange={(e) => setTaxa(e.target.value)} placeholder="Ex.: 12" className={`${CAMPO} min-w-0 flex-1`} />
-            <select aria-label="Período da taxa" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className={`${CAMPO} w-36 shrink-0`}>
-              <option value="anual">% ao ano</option>
-              <option value="mensal">% ao mês</option>
+            <div className="relative min-w-0 flex-1">
+              <input
+                id="simTaxa"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={taxa}
+                onChange={(e) => setTaxa(e.target.value)}
+                placeholder="12"
+                className={`${CAMPO} pr-8 font-semibold`}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-suave">%</span>
+            </div>
+            <select
+              aria-label="A taxa é ao ano ou ao mês?"
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value)}
+              className={`${CAMPO_AUTO} w-24 shrink-0 px-2`}
+            >
+              <option value="anual">ao ano</option>
+              <option value="mensal">ao mês</option>
             </select>
           </div>
         </div>
         {modo === 'final' ? (
-          <Campo id="simAnos" rotulo="Período" valor={anos} aoMudar={setAnos} sufixo="anos" passo="1" larguraTotal />
+          <Campo id="simAnos" rotulo="Período" valor={anos} aoMudar={setAnos} sufixo="anos" passo="1" />
         ) : (
-          <Campo id="simMeta" rotulo="Meta (quanto quer juntar)" valor={meta} aoMudar={setMeta} prefixo="R$" larguraTotal />
+          <Campo id="simMeta" rotulo="Meta (quanto quer juntar)" valor={meta} aoMudar={setMeta} prefixo="R$" />
         )}
       </div>
 

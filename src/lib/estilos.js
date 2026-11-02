@@ -2,6 +2,9 @@
 export const CAMPO =
   'w-full rounded-xl border border-linha bg-cartao2 px-4 py-3 text-sm text-texto placeholder:text-suave/70 outline-none focus:border-marca focus:ring-2 focus:ring-marca/25';
 
+// Mesmo visual do CAMPO, mas sem "largura 100%": use quando a largura for definida à mão
+export const CAMPO_AUTO = CAMPO.replace('w-full ', '');
+
 export const ROTULO = 'mb-1.5 block text-xs font-medium text-suave';
 
 export const BOTAO_PRINCIPAL =
