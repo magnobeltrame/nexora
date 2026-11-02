@@ -98,10 +98,24 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Foco visível para quem navega pelo teclado */
-  :focus-visible {
+  /* Foco visível só em botões e campos, para quem navega pelo teclado.
+     Gráficos e tabelas não mostram moldura ao serem clicados. */
+  :where(button, a, input, select, textarea, summary, [role='tab'], [role='radio']):focus-visible {
     outline: 2px solid rgb(var(--marca));
     outline-offset: 2px;
+  }
+  :focus:not(:focus-visible),
+  svg,
+  svg *,
+  .recharts-wrapper,
+  .recharts-wrapper *,
+  table,
+  td,
+  th {
+    outline: none !important;
+  }
+  * {
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Campo de data com o ícone do calendário legível no tema escuro */

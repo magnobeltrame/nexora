@@ -174,7 +174,7 @@ export default function VisaoGeral({
           <>
             <div className="relative mt-2 h-48">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart accessibilityLayer={false}>
                   <Pie data={dadosCategorias} dataKey="valor" nameKey="nome" innerRadius={58} outerRadius={82} paddingAngle={2} stroke="none">
                     {dadosCategorias.map((item) => (
                       <Cell key={item.nome} fill={item.cor} />

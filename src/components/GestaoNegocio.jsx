@@ -265,7 +265,7 @@ export default function GestaoNegocio({
               <h3 className="text-sm font-semibold text-texto">De onde vem o faturamento</h3>
               <div className="relative mt-2 h-44">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart accessibilityLayer={false}>
                     <Pie data={mixServicos} innerRadius={54} outerRadius={78} paddingAngle={2} dataKey="valor" nameKey="nome" stroke="none">
                       {mixServicos.map((entry) => (
                         <Cell key={entry.nome} fill={entry.cor} />

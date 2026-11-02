@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import ModalAtivo from './ModalAtivo';
 import RelatorioIR from './RelatorioIR';
@@ -43,6 +43,22 @@ export default function GestaoInvestimentos({
   const semCnpj = ativos.filter((a) => pos.some((p) => p.ticker === a.ticker) && !a.cnpj).length;
 
   const matriz = useMemo(() => matrizProventos(proventos, anoProventos), [proventos, anoProventos]);
+  // Ações primeiro e fundos imobiliários agrupados embaixo, cada grupo em ordem alfabética
+  const gruposMatriz = useMemo(() => {
+    const grupo = (id, titulo, linhas) => ({
+      id,
+      titulo,
+      linhas,
+      totaisMes: MESES.map((_, i) => linhas.reduce((a, l) => a + l.meses[i], 0)),
+      total: linhas.reduce((a, l) => a + l.total, 0),
+    });
+    const ehFii = (l) => ativosPorTicker[l.ticker]?.classe === 'fii';
+    return [
+      grupo('acao', 'Ações', matriz.linhas.filter((l) => !ehFii(l))),
+      grupo('fii', 'Fundos imobiliários', matriz.linhas.filter(ehFii)),
+    ].filter((g) => g.linhas.length > 0);
+  }, [matriz, ativosPorTicker]);
+
   const proventosAnoAtual = useMemo(() => matrizProventos(proventos, anoAtual).total, [proventos, anoAtual]);
 
   const anosProventos = useMemo(() => {
@@ -139,7 +155,7 @@ export default function GestaoInvestimentos({
               <div className="mt-2 flex items-center gap-4">
                 <div className="h-32 w-32 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart accessibilityLayer={false}>
                       <Pie data={classes} dataKey="valor" nameKey="id" innerRadius={34} outerRadius={56} paddingAngle={2} stroke="none">
                         {classes.map((c) => (
                           <Cell key={c.id} fill={COR[c.id]} />
@@ -240,7 +256,7 @@ export default function GestaoInvestimentos({
             <>
               <div className="mt-5 h-44 w-full text-suave">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={MESES.map((m, i) => ({ mes: m, valor: matriz.totaisMes[i] }))} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                  <BarChart accessibilityLayer={false} data={MESES.map((m, i) => ({ mes: m, valor: matriz.totaisMes[i] }))} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                     <XAxis dataKey="mes" tick={{ fill: 'currentColor', fontSize: 10 }} tickLine={false} axisLine={false} interval={0} />
                     <Tooltip cursor={{ fill: 'currentColor', fillOpacity: 0.08 }} formatter={(v) => [moeda(v), 'Proventos']} {...ESTILO_TOOLTIP} />
                     <Bar dataKey="valor" fill="#10B981" radius={[4, 4, 0, 0]} />
@@ -263,16 +279,35 @@ export default function GestaoInvestimentos({
                     </tr>
                   </thead>
                   <tbody>
-                    {matriz.linhas.map((l) => (
-                      <tr key={l.ticker} className="border-t border-linha">
-                        <td className="sticky left-0 z-10 bg-cartao px-3 py-2 font-semibold text-texto">{l.ticker}</td>
-                        {l.meses.map((v, i) => (
-                          <td key={i} className={`px-2 py-2 text-right ${v > 0 ? 'bg-receita/10 font-medium text-receita' : 'text-suave/60'}`}>
-                            {v > 0 ? decimal(v) : '–'}
-                          </td>
+                    {gruposMatriz.map((g) => (
+                      <Fragment key={g.id}>
+                        <tr className="border-t border-linha bg-cartao2">
+                          <td className="sticky left-0 z-10 bg-cartao2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-marca">{g.titulo}</td>
+                          <td colSpan={13} className="bg-cartao2"></td>
+                        </tr>
+                        {g.linhas.map((l) => (
+                          <tr key={l.ticker} className="border-t border-linha">
+                            <td className="sticky left-0 z-10 bg-cartao px-3 py-2 font-semibold text-texto">{l.ticker}</td>
+                            {l.meses.map((v, i) => (
+                              <td key={i} className={`px-2 py-2 text-right ${v > 0 ? 'bg-receita/10 font-medium text-receita' : 'text-suave/60'}`}>
+                                {v > 0 ? decimal(v) : '–'}
+                              </td>
+                            ))}
+                            <td className="px-3 py-2 text-right font-semibold text-texto">{decimal(l.total)}</td>
+                          </tr>
                         ))}
-                        <td className="px-3 py-2 text-right font-semibold text-texto">{decimal(l.total)}</td>
-                      </tr>
+                        {gruposMatriz.length > 1 && (
+                          <tr className="border-t border-linha font-semibold text-texto">
+                            <td className="sticky left-0 z-10 bg-cartao px-3 py-2 text-[11px] text-suave">Subtotal {g.id === 'fii' ? 'FIIs' : 'ações'}</td>
+                            {g.totaisMes.map((v, i) => (
+                              <td key={i} className="px-2 py-2 text-right text-suave">
+                                {v > 0 ? decimal(v) : '–'}
+                              </td>
+                            ))}
+                            <td className="px-3 py-2 text-right">{decimal(g.total)}</td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
                     <tr className="border-t-2 border-linha bg-cartao2 font-semibold text-texto">
                       <td className="sticky left-0 z-10 bg-cartao2 px-3 py-2">Total</td>

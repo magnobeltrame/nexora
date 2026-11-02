@@ -101,7 +101,7 @@ export default function EvolucaoDetalhada({ receitas = [], despesas = [] }) {
         {temDados ? (
           <div className="mt-3 h-60 w-full text-suave">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dadosAnuais} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+              <BarChart accessibilityLayer={false} data={dadosAnuais} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="currentColor" strokeOpacity={0.2} strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="mes" tick={{ fill: 'currentColor', fontSize: 10 }} tickLine={false} axisLine={false} interval={0} />
                 <Tooltip

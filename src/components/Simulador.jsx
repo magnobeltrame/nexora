@@ -18,9 +18,9 @@ const duracao = (meses) => {
   return partes.length ? partes.join(' e ') : 'agora mesmo';
 };
 
-function Campo({ id, rotulo, valor, aoMudar, prefixo, sufixo, passo = '0.01' }) {
+function Campo({ id, rotulo, valor, aoMudar, prefixo, sufixo, passo = '0.01', larguraTotal = false }) {
   return (
-    <div>
+    <div className={larguraTotal ? 'col-span-2' : ''}>
       <label htmlFor={id} className={ROTULO}>
         {rotulo}
       </label>
@@ -90,22 +90,22 @@ export default function Simulador() {
       <div className="mt-4 grid grid-cols-2 gap-3">
         <Campo id="simInicial" rotulo="Valor inicial" valor={inicial} aoMudar={setInicial} prefixo="R$" />
         <Campo id="simAporte" rotulo="Aporte mensal" valor={aporte} aoMudar={setAporte} prefixo="R$" />
-        <div>
+        <div className="col-span-2">
           <label htmlFor="simTaxa" className={ROTULO}>
             Taxa de juros
           </label>
           <div className="flex gap-2">
-            <input id="simTaxa" type="number" min="0" step="0.01" inputMode="decimal" value={taxa} onChange={(e) => setTaxa(e.target.value)} className={CAMPO} />
-            <select aria-label="Período da taxa" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className={`${CAMPO} w-32 shrink-0`}>
+            <input id="simTaxa" type="number" min="0" step="0.01" inputMode="decimal" value={taxa} onChange={(e) => setTaxa(e.target.value)} placeholder="Ex.: 12" className={`${CAMPO} min-w-0 flex-1`} />
+            <select aria-label="Período da taxa" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className={`${CAMPO} w-36 shrink-0`}>
               <option value="anual">% ao ano</option>
               <option value="mensal">% ao mês</option>
             </select>
           </div>
         </div>
         {modo === 'final' ? (
-          <Campo id="simAnos" rotulo="Período" valor={anos} aoMudar={setAnos} sufixo="anos" passo="1" />
+          <Campo id="simAnos" rotulo="Período" valor={anos} aoMudar={setAnos} sufixo="anos" passo="1" larguraTotal />
         ) : (
-          <Campo id="simMeta" rotulo="Meta (quanto quer juntar)" valor={meta} aoMudar={setMeta} prefixo="R$" />
+          <Campo id="simMeta" rotulo="Meta (quanto quer juntar)" valor={meta} aoMudar={setMeta} prefixo="R$" larguraTotal />
         )}
       </div>
 
@@ -158,7 +158,7 @@ export default function Simulador() {
           </div>
           <div className="mt-2 h-52 w-full text-suave">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={resultado.pontos} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+              <AreaChart accessibilityLayer={false} data={resultado.pontos} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
                 <XAxis dataKey="ano" tick={{ fill: 'currentColor', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}a`} />
                 <Tooltip
                   formatter={(v, nome) => [moeda(v), nome === 'total' ? 'Total' : 'Você colocou']}
